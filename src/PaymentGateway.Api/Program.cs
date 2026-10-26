@@ -5,9 +5,20 @@ using PaymentGateway.Api.Models;
 using PaymentGateway.Api.Data.Repositories;
 using PaymentGateway.Api.Services;
 using PaymentGateway.Api.Services.impl;
+using PaymentGateway.Api.RateLimiting;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOptions<PaymentRateLimitOptions>()
+    .Bind(builder.Configuration.GetSection(Constants.RateLimiting.ConfigurationSection))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy<string, PaymentRateLimitPolicy>(Constants.RateLimiting.PolicyName);
+});
 
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -21,9 +32,9 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
         var problem = new ValidationProblemDetails(errors)
         {
             Status = StatusCodes.Status400BadRequest,
-            Title = Constants.Payment.RejectedProblemTitle
+            Title = Constants.Payment.RejectedProblemTitle,
+            Extensions = { [Constants.Payment.StatusExtensionKey] = nameof(PaymentStatus.Rejected) }
         };
-        problem.Extensions[Constants.Payment.StatusExtensionKey] = nameof(PaymentStatus.Rejected);
         return new BadRequestObjectResult(problem);
     };
 });
@@ -50,6 +61,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 app.UseHttpsRedirection();
+app.UseRouting();
+app.UseRateLimiter();
 app.MapControllers();
 app.Run();
 

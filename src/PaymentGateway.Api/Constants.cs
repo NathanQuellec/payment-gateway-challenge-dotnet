@@ -2,6 +2,12 @@ namespace PaymentGateway.Api;
 
 internal static class Constants
 {
+    internal static class RateLimiting
+    {
+        public const string PolicyName = "payments";
+        public const string ConfigurationSection = "RateLimiting:Payments";
+    }
+
     internal static class Payment
     {
         public const int MinimumCardNumberLength = 14;

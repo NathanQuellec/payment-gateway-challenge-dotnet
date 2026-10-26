@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 using PaymentGateway.Api.Exceptions;
 using PaymentGateway.Api.Models;
@@ -13,6 +14,8 @@ namespace PaymentGateway.Api.Controllers;
 /// </summary>
 [Route("api/[controller]")]
 [ApiController]
+[EnableRateLimiting(Constants.RateLimiting.PolicyName)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class PaymentsController(IPaymentsService paymentsService) : ControllerBase
 {
     /// <summary>

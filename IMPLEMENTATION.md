@@ -52,6 +52,29 @@ formats the expiry date as MM/yyyy.
 
 ## Decisions and assumptions
 
+### Endpoint rate limits
+
+Payment endpoints use ASP.NET Core's fixed-window rate limiter, partitioned by
+connection IP address and HTTP method. Defaults are 10 POST submissions and 60
+GET lookups per 60-second window. Looking up different payment IDs shares the
+same lookup quota. Requests are not queued; excess requests return HTTP 429 with
+an `application/problem+json` body and a `Retry-After` header in seconds. Rejected
+requests do not reach the controller or bank. Swagger documents the 429 response.
+
+Configure `RateLimiting:Payments:SubmissionPermitLimit`, `LookupPermitLimit` and
+`WindowSeconds` in appsettings.json, or set environment variables such as
+`RateLimiting__Payments__SubmissionPermitLimit`. All values must be positive;
+invalid values prevent application startup.
+
+Counters are local to each API process and reset on restart. Clients sharing an
+IP address share a quota. The application uses the connection IP and does not
+trust forwarded IP headers. Behind a reverse proxy, configure forwarded-header
+middleware with explicitly trusted proxies before rate limiting to use original
+client IPs; otherwise clients share the proxy's quota. Use an upstream shared
+limiter when quotas must span multiple API instances.
+
+### Payment processing
+
 - Cards remain valid through the end of their expiry month, using UTC.
 - Currency must be uppercase GBP, USD, or EUR.
 - Amount is a positive 32-bit integer in minor currency units.

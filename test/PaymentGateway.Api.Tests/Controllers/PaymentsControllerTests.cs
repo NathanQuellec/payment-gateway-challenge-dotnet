@@ -13,7 +13,7 @@ namespace PaymentGateway.Api.Tests.Controllers;
 
 public class PaymentsControllerTests
 {
-    private static WebApplicationFactory<Program> Factory(HttpStatusCode bankStatus = HttpStatusCode.OK, bool authorized = true) =>
+    internal static WebApplicationFactory<Program> Factory(HttpStatusCode bankStatus = HttpStatusCode.OK, bool authorized = true) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
         {
             services.AddSingleton<TimeProvider>(new FixedTimeProvider());
