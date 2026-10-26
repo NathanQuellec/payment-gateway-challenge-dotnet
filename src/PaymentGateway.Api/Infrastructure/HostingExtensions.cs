@@ -1,5 +1,7 @@
 using System.Net;
+
 using Microsoft.AspNetCore.HttpOverrides;
+
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;

@@ -12,4 +12,3 @@ public class PaymentResponse
     public string Currency { get; init; } = "";
     public int Amount { get; init; }
 }
-

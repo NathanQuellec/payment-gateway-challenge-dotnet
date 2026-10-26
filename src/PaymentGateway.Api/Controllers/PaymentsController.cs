@@ -83,4 +83,3 @@ public class PaymentsController(IPaymentsService paymentsService) : ControllerBa
         return CreatedAtAction(nameof(GetPaymentDetails), new { id = payment.Id }, payment);
     }
 }
-

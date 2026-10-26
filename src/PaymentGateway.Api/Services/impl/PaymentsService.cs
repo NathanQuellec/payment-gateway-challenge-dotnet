@@ -1,11 +1,11 @@
+using PaymentGateway.Api.Data.Repositories;
 using PaymentGateway.Api.Exceptions;
 using PaymentGateway.Api.Models;
 using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Models.Responses;
-using PaymentGateway.Api.Data.Repositories;
 using PaymentGateway.Api.Observability;
 
-namespace PaymentGateway.Api.Services.impl;
+namespace PaymentGateway.Api.Services.Impl;
 
 public class PaymentsService(
     PaymentsRepository paymentsRepository,

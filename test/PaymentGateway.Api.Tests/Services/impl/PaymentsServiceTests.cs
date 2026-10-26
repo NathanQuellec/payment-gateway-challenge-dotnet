@@ -1,15 +1,18 @@
 using System.Text.Json;
+
 using Microsoft.Extensions.Logging.Abstractions;
+
+using PaymentGateway.Api.Data.Repositories;
+using PaymentGateway.Api.Exceptions;
 using PaymentGateway.Api.Models;
 using PaymentGateway.Api.Models.Requests;
-using PaymentGateway.Api.Data.Repositories;
 using PaymentGateway.Api.Services;
-using PaymentGateway.Api.Exceptions;
-using PaymentGateway.Api.Services.impl;
+using PaymentGateway.Api.Services.Impl;
 using PaymentGateway.Api.Tests.TestSupport;
+
 using static PaymentGateway.Api.Tests.TestSupport.PaymentTestData;
 
-namespace PaymentGateway.Api.Tests.Services.impl;
+namespace PaymentGateway.Api.Tests.Services.Impl;
 
 public class PaymentsServiceTests
 {

@@ -1,11 +1,13 @@
 using System.Text.Json.Serialization;
+
 using Microsoft.AspNetCore.Mvc;
+
 using PaymentGateway.Api;
 using PaymentGateway.Api.Data.Repositories;
-using PaymentGateway.Api.Services;
-using PaymentGateway.Api.Services.impl;
-using PaymentGateway.Api.RateLimiting;
 using PaymentGateway.Api.Infrastructure;
+using PaymentGateway.Api.RateLimiting;
+using PaymentGateway.Api.Services;
+using PaymentGateway.Api.Services.Impl;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,10 +37,7 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-builder.Services.Configure<ApiBehaviorOptions>(options =>
-{
-    options.InvalidModelStateResponseFactory = ApiProblems.InvalidModelState;
-});
+builder.Services.Configure<ApiBehaviorOptions>(options => options.InvalidModelStateResponseFactory = ApiProblems.InvalidModelState);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -85,4 +84,3 @@ app.MapHealthChecks(Constants.Hosting.ReadinessPath).DisableRateLimiting();
 app.Run();
 
 public partial class Program;
-

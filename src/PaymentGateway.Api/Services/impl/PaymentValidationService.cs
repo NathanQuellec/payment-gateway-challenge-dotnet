@@ -1,7 +1,7 @@
 using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Predicates;
 
-namespace PaymentGateway.Api.Services.impl;
+namespace PaymentGateway.Api.Services.Impl;
 
 public class PaymentValidationService(TimeProvider timeProvider) : IPaymentValidationService
 {
@@ -57,5 +57,3 @@ public class PaymentValidationService(TimeProvider timeProvider) : IPaymentValid
             errors[nameof(request.Amount)] = ["Amount must be a positive integer in minor units."];
     }
 }
-
-

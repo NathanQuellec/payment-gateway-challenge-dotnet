@@ -1,8 +1,9 @@
-using PaymentGateway.Api.Services.impl;
+using PaymentGateway.Api.Services.Impl;
 using PaymentGateway.Api.Tests.TestSupport;
+
 using static PaymentGateway.Api.Tests.TestSupport.PaymentTestData;
 
-namespace PaymentGateway.Api.Tests.Services.impl;
+namespace PaymentGateway.Api.Tests.Services.Impl;
 
 public class PaymentValidationServiceTests
 {
