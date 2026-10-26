@@ -1,9 +1,11 @@
-name: Build and test
+name: Build, test and security
 
 on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * 1'
 
 permissions:
   contents: read
@@ -13,6 +15,94 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  code-quality:
+    name: Code quality (.NET analyzers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore dependencies
+        run: dotnet restore PaymentGateway.sln
+
+      - name: Build with compiler, analyzer and code style warnings as errors
+        run: >-
+          dotnet build PaymentGateway.sln
+          --configuration Release --no-restore
+          -warnaserror
+          -p:EnableNETAnalyzers=true
+          -p:AnalysisLevel=8.0
+          -p:EnforceCodeStyleInBuild=true
+
+  dependency-security:
+    name: NuGet vulnerability audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Restore fails on vulnerability warnings, including low severity,
+      # and on errors retrieving vulnerability data.
+      - name: Audit direct and transitive dependencies
+        run: >-
+          dotnet restore PaymentGateway.sln --force --no-cache
+          -p:NuGetAudit=true
+          -p:NuGetAuditMode=all
+          -p:NuGetAuditLevel=low
+          -p:TreatWarningsAsErrors=true
+
+  codeql:
+    name: CodeQL security analysis (C#)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: csharp
+          build-mode: manual
+          queries: security-extended
+
+      - name: Build for CodeQL
+        run: dotnet build PaymentGateway.sln --configuration Release
+
+      - name: Analyze and upload security findings
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:csharp
+
   build-and-test:
     name: Build and test (.NET 8)
     runs-on: ubuntu-latest

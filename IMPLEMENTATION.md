@@ -71,6 +71,23 @@ formats the expiry date as MM/yyyy.
 
 ## Verification
 
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs on pushes, pull
+requests, manual dispatch and Mondays at 07:00 UTC. Independent jobs run the
+tests, enforce compiler and .NET analyzer warnings as errors, audit direct and
+transitive NuGet dependencies, and scan C# with CodeQL's security-extended suite.
+The quality job enables build-time code style diagnostics; it does not enforce
+whitespace formatting. Test results and coverage are retained for 14 days.
+
+The dependency audit fails on known vulnerabilities of any severity or failure
+to retrieve vulnerability information. Initial auditing identified advisories
+for Swashbuckle.AspNetCore.SwaggerUI 6.2.3, Newtonsoft.Json 9.0.1,
+System.Net.Http 4.3.0 and System.Text.RegularExpressions 4.3.0; dependency upgrades
+are needed before this check passes. CodeQL publishes findings to GitHub code
+scanning; findings do not automatically fail the analysis job. Configure required
+checks and code scanning merge protection in repository settings to enforce
+merge restrictions. CodeQL is available for public repositories; private
+repositories require GitHub Code Security.
+
 Unit tests cover validation boundaries, bank decisions, rejection before bank
 invocation, request mapping, malformed bank responses, transport failures and
 cancellation. API integration tests exercise the real service, validator,

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
-using PaymentGateway.Api.Repositories;
+using PaymentGateway.Api.Data.Repositories;
 using PaymentGateway.Api.Services;
 using PaymentGateway.Api.Services.impl;
 
@@ -26,7 +26,11 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
     };
 });
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    var xmlFile = $"{typeof(Program).Assembly.GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFile), includeControllerXmlComments: true);
+});
 builder.Services.AddSingleton<PaymentsRepository>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton<IPaymentValidationService, PaymentValidationService>();

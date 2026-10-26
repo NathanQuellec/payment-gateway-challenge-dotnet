@@ -2,7 +2,7 @@ using PaymentGateway.Api.Exceptions;
 using PaymentGateway.Api.Models;
 using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Models.Responses;
-using PaymentGateway.Api.Repositories;
+using PaymentGateway.Api.Data.Repositories;
 
 namespace PaymentGateway.Api.Services.impl;
 
@@ -14,7 +14,7 @@ public class PaymentsService(
 {
     public PaymentResponse? GetPaymentDetails(Guid id)
     {
-        var payment = paymentsRepository.GetPaymentById(id);
+        var payment = paymentsRepository.GetPaymentRecordById(id);
         logger.LogDebug("Payment lookup for {PaymentId} completed. Found: {Found}.", id, payment is not null);
         return payment is null ? null : ToResponse(payment);
     }
@@ -26,7 +26,7 @@ public class PaymentsService(
         ValidatePaymentRequest(paymentRequest);
 
         Payment payment = await RequestBankAuthorizationAsync(paymentRequest, cancellationToken);
-        paymentsRepository.Add(payment);
+        paymentsRepository.AddPaymentRecord(payment);
         logger.LogInformation("Payment {PaymentId} stored with status {PaymentStatus}.", payment.Id, payment.Status);
         return ToResponse(payment);
     }
