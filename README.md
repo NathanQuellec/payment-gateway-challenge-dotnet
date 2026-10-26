@@ -26,7 +26,7 @@ curl --fail http://localhost:5000/health/ready
 | Simulator administration | http://localhost:2525 |
 
 All published ports bind to localhost. Set `API_PORT`, `BANK_PORT`,
-`BANK_ADMIN_PORT`, or `METRICS_PORT` before starting Compose if a port is occupied.
+`BANK_ADMIN_PORT`, `METRICS_PORT`, or `OTLP_PORT` before starting Compose if a port is occupied.
 For example, `API_PORT=5001 docker compose up --build -d` on Bash, or
 `$env:API_PORT='5001'` before the same command in PowerShell.
 
@@ -44,7 +44,7 @@ The local SDK is pinned by `global.json` to .NET 8.0.205. The container uses the
 serviced .NET 8 SDK and ASP.NET runtime images.
 
 ```sh
-docker compose up -d bank_simulator
+docker compose up -d bank_simulator otel-collector
 dotnet run --project src/PaymentGateway.Api --urls http://localhost:5000
 dotnet test PaymentGateway.sln
 ```
@@ -95,7 +95,7 @@ retry a payment.
 | `RateLimiting__Payments__WindowSeconds` | 60 seconds |
 | `Hosting__UseHttpsRedirection` | true; false inside the local HTTP container |
 | `Hosting__KnownProxyNetworks__0` | Optional trusted proxy CIDR |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Optional collector URL; unset disables external export |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Collector URL: IDE profiles use `http://localhost:4317`, Compose uses `http://otel-collector:4317`; unset disables export |
 | `OTEL_METRIC_EXPORT_INTERVAL` | Export interval in milliseconds; Compose uses 5000 |
 
 See [IMPLEMENTATION.md](IMPLEMENTATION.md) for telemetry names, tradeoffs,

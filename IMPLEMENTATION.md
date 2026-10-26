@@ -60,6 +60,41 @@ names and units (dots become underscores; counters may gain `_total`). Compose
 sets `OTEL_METRIC_EXPORT_INTERVAL=5000` milliseconds. The collector is an
 inspection/export setup, not a retained trace store or monitoring dashboard.
 
+#### Telemetry endpoints
+
+Start the stack with `docker compose up --build -d --wait`.
+
+| Purpose | Endpoint / command | Access |
+| --- | --- | --- |
+| Inspect exported metrics | http://localhost:9464/metrics | Browser, curl or a Prometheus scraper on the host |
+| Send traces and metrics to the collector | `http://otel-collector:4317` | OTLP over gRPC inside the Compose network; configured as `OTEL_EXPORTER_OTLP_ENDPOINT` on the API |
+| Send telemetry from an IDE / host process | `http://localhost:4317` | Published on localhost; configured in the development launch profiles |
+| Inspect trace summaries | `docker compose logs -f otel-collector` | Collector console output |
+
+Port 4317 accepts telemetry over gRPC; it is not a browser page. Compose publishes
+it on localhost for IDE/SDK development. The launch profiles set
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` and a five-second export
+interval. Restart an already running IDE process after changing its launch
+settings. Host processes cannot use the Docker-only `otel-collector` hostname.
+
+The metrics URL uses port 9464 by default. If `METRICS_PORT` is overridden, use
+that host port instead. Make a payment request and allow about five seconds for
+the Compose export interval before looking for custom payment metrics. There is
+no trace-viewer or dashboard endpoint in the current stack.
+
+An HTTP 200 response with an empty metrics body means the collector has not yet
+received metrics. Check `docker compose ps`: the API must be running, not merely
+Created. Start it with `docker compose up --build -d api`, or run the IDE profile
+after starting the collector with `docker compose up -d otel-collector`. Send a
+request to the API and wait for the export interval before refreshing `/metrics`.
+Inspect exporter/collector errors with `docker compose logs api otel-collector`.
+
+If Windows prevents Docker from binding the default API port 5000, set
+`$env:API_PORT='15000'` in PowerShell before `docker compose up --build -d api`.
+The API/Swagger then uses http://localhost:15000; the metrics URL remains
+http://localhost:9464/metrics. The collector has no application data to expose
+until an instrumented API process exports measurements.
+
 ### Packaging and hosting
 
 The multi-stage Dockerfile publishes using the serviced .NET 8 SDK and runs using
