@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using PaymentGateway.Api.Infrastructure;
+using PaymentGateway.Api.Observability;
 
 namespace PaymentGateway.Api.RateLimiting;
 
@@ -31,6 +33,7 @@ public sealed class PaymentRateLimitPolicy(IOptions<PaymentRateLimitOptions> opt
     private static async ValueTask HandleRejectionAsync(OnRejectedContext context, CancellationToken cancellationToken)
     {
         var response = context.HttpContext.Response;
+        PaymentTelemetry.RecordRateLimitRejection();
         if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
         {
             response.Headers.RetryAfter = Math.Ceiling(retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
@@ -38,8 +41,9 @@ public sealed class PaymentRateLimitPolicy(IOptions<PaymentRateLimitOptions> opt
 
         await Results.Problem(
             statusCode: StatusCodes.Status429TooManyRequests,
-            title: "Too many requests.",
-            detail: "The request limit has been reached. Retry after the indicated delay.")
+            title: Constants.RateLimiting.RejectedProblemTitle,
+            detail: Constants.RateLimiting.RejectedProblemDetail,
+            extensions: new Dictionary<string, object?> { [Constants.Telemetry.TraceIdExtensionKey] = ApiProblems.TraceId(context.HttpContext) })
             .ExecuteAsync(context.HttpContext);
     }
 }

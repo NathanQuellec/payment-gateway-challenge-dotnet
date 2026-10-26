@@ -3,6 +3,7 @@ using PaymentGateway.Api.Models;
 using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Models.Responses;
 using PaymentGateway.Api.Data.Repositories;
+using PaymentGateway.Api.Observability;
 
 namespace PaymentGateway.Api.Services.impl;
 
@@ -23,10 +24,28 @@ public class PaymentsService(
         PaymentRequest paymentRequest, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Processing payment.");
-        ValidatePaymentRequest(paymentRequest);
-
-        Payment payment = await RequestBankAuthorizationAsync(paymentRequest, cancellationToken);
+        using var activity = PaymentTelemetry.Activities.StartActivity(Constants.Telemetry.ProcessPaymentActivityName);
+        Payment payment;
+        try
+        {
+            ValidatePaymentRequest(paymentRequest);
+            payment = await RequestBankAuthorizationAsync(paymentRequest, cancellationToken);
+        }
+        catch (PaymentValidationException)
+        {
+            PaymentTelemetry.RecordPayment(Constants.Telemetry.RejectedOutcome);
+            throw;
+        }
+        catch (BankException)
+        {
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error);
+            PaymentTelemetry.RecordPayment(Constants.Telemetry.BankFailureOutcome);
+            throw;
+        }
         paymentsRepository.AddPaymentRecord(payment);
+        PaymentTelemetry.RecordPayment(payment.Status == PaymentStatus.Authorized
+            ? Constants.Telemetry.AuthorizedOutcome
+            : Constants.Telemetry.DeclinedOutcome);
         logger.LogInformation("Payment {PaymentId} stored with status {PaymentStatus}.", payment.Id, payment.Status);
         return ToResponse(payment);
     }
@@ -45,16 +64,7 @@ public class PaymentsService(
     private async Task<Payment> RequestBankAuthorizationAsync(PaymentRequest paymentRequest, CancellationToken cancellationToken)
     {
         logger.LogDebug("Requesting acquiring bank authorization.");
-        bool authorized;
-        try
-        {
-            authorized = await bankClient.AuthorizeAsync(paymentRequest, cancellationToken);
-        }
-        catch (BankException exception)
-        {
-            logger.LogError(exception, "Bank authorization failed with status code {StatusCode}.", exception.StatusCode);
-            throw;
-        }
+        var authorized = await bankClient.AuthorizeAsync(paymentRequest, cancellationToken);
         var payment = new Payment
         {
             Id = Guid.NewGuid(),

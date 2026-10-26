@@ -4,6 +4,7 @@ using PaymentGateway.Api.Models;
 using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Data.Repositories;
 using PaymentGateway.Api.Services;
+using PaymentGateway.Api.Exceptions;
 using PaymentGateway.Api.Services.impl;
 using PaymentGateway.Api.Tests.TestSupport;
 using static PaymentGateway.Api.Tests.TestSupport.PaymentTestData;

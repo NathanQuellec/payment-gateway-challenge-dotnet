@@ -2,10 +2,47 @@ namespace PaymentGateway.Api;
 
 internal static class Constants
 {
+    internal static class Telemetry
+    {
+        public const string ServiceName = "PaymentGateway.Api";
+        public const string OtlpEndpointConfigurationKey = "OTEL_EXPORTER_OTLP_ENDPOINT";
+        public const string TraceIdExtensionKey = "traceId";
+        public const string TraceIdHeaderName = "X-Trace-Id";
+        public const string TraceIdLogProperty = "TraceId";
+        public const string ExceptionMiddlewareLogCategory = "Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware";
+        public const string ProcessPaymentActivityName = "payment.process";
+        public const string PaymentsCounterName = "payments.processed";
+        public const string BankDurationHistogramName = "bank.authorization.duration";
+        public const string RateLimitRejectionsCounterName = "payments.rate_limit.rejections";
+        public const string OutcomeTagName = "outcome";
+        public const string AuthorizedOutcome = "authorized";
+        public const string DeclinedOutcome = "declined";
+        public const string RejectedOutcome = "rejected";
+        public const string BankFailureOutcome = "bank_failure";
+    }
+
+    internal static class Hosting
+    {
+        public const string KnownProxyNetworksConfigurationKey = "Hosting:KnownProxyNetworks";
+        public const string UseHttpsRedirectionConfigurationKey = "Hosting:UseHttpsRedirection";
+        public const string HealthPathPrefix = "/health";
+        public const string LivenessPath = HealthPathPrefix + "/live";
+        public const string ReadinessPath = HealthPathPrefix + "/ready";
+    }
+
+    internal static class Errors
+    {
+        public const string UnexpectedErrorTitle = "An unexpected error occurred.";
+        public const string MissingOrInvalidValueMessage = "A required value is missing or invalid.";
+        public const string FallbackValidationField = "request";
+    }
+
     internal static class RateLimiting
     {
         public const string PolicyName = "payments";
         public const string ConfigurationSection = "RateLimiting:Payments";
+        public const string RejectedProblemTitle = "Too many requests.";
+        public const string RejectedProblemDetail = "The request limit has been reached. Retry after the indicated delay.";
     }
 
     internal static class Payment

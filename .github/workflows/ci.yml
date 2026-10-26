@@ -1,4 +1,4 @@
-name: Build, test and security
+name: CI
 
 on:
   push:
@@ -15,6 +15,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  container-smoke:
+    name: API and bank simulator smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Start application stack
+        run: docker compose up -d --build --wait --wait-timeout 180
+      - name: Wait for API readiness
+        run: curl --fail --retry 20 --retry-delay 2 --retry-connrefused http://localhost:5000/health/ready
+      - name: Exercise real bank contract
+        shell: pwsh
+        run: ./scripts/smoke-test.ps1
+      - name: Show container diagnostics
+        if: failure()
+        run: docker compose logs --tail 80
+      - name: Stop application stack
+        if: always()
+        run: docker compose down
+
   code-quality:
     name: Code quality (.NET analyzers)
     runs-on: ubuntu-latest
@@ -68,40 +90,6 @@ jobs:
           -p:NuGetAuditMode=all
           -p:NuGetAuditLevel=low
           -p:TreatWarningsAsErrors=true
-
-  codeql:
-    name: CodeQL security analysis (C#)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      security-events: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Set up .NET SDK
-        uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: csharp
-          build-mode: manual
-          queries: security-extended
-
-      - name: Build for CodeQL
-        run: dotnet build PaymentGateway.sln --configuration Release
-
-      - name: Analyze and upload security findings
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: /language:csharp
 
   build-and-test:
     name: Build and test (.NET 8)

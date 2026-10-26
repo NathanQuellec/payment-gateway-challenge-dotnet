@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
-using PaymentGateway.Api.Exceptions;
-using PaymentGateway.Api.Models;
 using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Models.Responses;
 using PaymentGateway.Api.Services;
@@ -81,25 +79,8 @@ public class PaymentsController(IPaymentsService paymentsService) : ControllerBa
     public async Task<ActionResult<PaymentResponse>> ProcessPaymentAsync(
         [FromBody] PaymentRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var payment = await paymentsService.ProcessPayment(request, cancellationToken);
-            return CreatedAtAction(nameof(GetPaymentDetails), new { id = payment.Id }, payment);
-        }
-        catch (PaymentValidationException exception)
-        {
-            var problem = new ValidationProblemDetails(exception.Errors)
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = Constants.Payment.RejectedProblemTitle,
-                Extensions = { [Constants.Payment.StatusExtensionKey] = nameof(PaymentStatus.Rejected) }
-            };
-            return BadRequest(problem);
-        }
-        catch (BankException exception)
-        {
-            return Problem(statusCode: exception.StatusCode, title: exception.Message);
-        }
+        var payment = await paymentsService.ProcessPayment(request, cancellationToken);
+        return CreatedAtAction(nameof(GetPaymentDetails), new { id = payment.Id }, payment);
     }
 }
 

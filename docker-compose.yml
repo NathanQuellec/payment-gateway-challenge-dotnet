@@ -1,15 +1,41 @@
-version: "3.8"
-
 services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:${API_PORT:-5000}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Bank__BaseUrl: http://bank_simulator:8080/
+      Hosting__UseHttpsRedirection: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "5000"
+    depends_on:
+      bank_simulator:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.128.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:${METRICS_PORT:-9464}:9464"
+
   bank_simulator:
-    container_name: bank_simulator
     image: bbyars/mountebank:2.8.1
     ports:
-      - "2525:2525"
-      - "8080:8080"
+      - "127.0.0.1:${BANK_ADMIN_PORT:-2525}:2525"
+      - "127.0.0.1:${BANK_PORT:-8080}:8080"
     command: --configfile /imposters/bank_simulator.ejs --allowInjection
     volumes:
       - type: bind
         source: ./imposters
         target: /imposters
-      
+        read_only: true
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:2525/imposters', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20

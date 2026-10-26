@@ -4,6 +4,9 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using PaymentGateway.Api.Services;
+using PaymentGateway.Api.Services.impl;
+using PaymentGateway.Api.Tests.TestSupport;
 using PaymentGateway.Api.RateLimiting;
 using static PaymentGateway.Api.Tests.TestSupport.PaymentTestData;
 
@@ -11,6 +14,54 @@ namespace PaymentGateway.Api.Tests.Controllers;
 
 public class PaymentRateLimitingTests
 {
+    [Fact]
+    public async Task ConcurrentRequestsRespectLimitAndRejectedRequestsDoNotCallBank()
+    {
+        var bankCalls = 0;
+        await using var factory = Factory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            services.AddHttpClient<IBankClient, BankClientService>().ConfigurePrimaryHttpMessageHandler(() =>
+                new StubHttpMessageHandler((_, _) =>
+                {
+                    Interlocked.Increment(ref bankCalls);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = JsonContent.Create(new { authorized = true, authorization_code = "test-approval" })
+                    });
+                }))));
+        using var client = factory.CreateClient();
+        var responses = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => SendAsync(factory, "POST")));
+        try
+        {
+            Assert.Equal(2, responses.Count(response => response.StatusCode == HttpStatusCode.Created));
+            Assert.Equal(8, responses.Count(response => response.StatusCode == HttpStatusCode.TooManyRequests));
+            Assert.Equal(2, bankCalls);
+        }
+        finally
+        {
+            foreach (var response in responses) response.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task ExhaustedWindowReplenishes()
+    {
+        await using var factory = Factory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            services.Configure<PaymentRateLimitOptions>(options => options.WindowSeconds = 1)));
+        using var client = factory.CreateClient();
+        using var first = await SendAsync(factory, "GET");
+        using var second = await SendAsync(factory, "GET");
+        using var rejected = await SendAsync(factory, "GET");
+        Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(100);
+            using var retry = await SendAsync(factory, "GET");
+            if (retry.StatusCode == HttpStatusCode.NotFound) return;
+        }
+        Assert.Fail("The fixed-window allowance did not replenish within five seconds.");
+    }
+
     private static WebApplicationFactory<Program> Factory() =>
         PaymentsControllerTests.Factory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.Configure<PaymentRateLimitOptions>(options =>
@@ -24,10 +75,8 @@ public class PaymentRateLimitingTests
         WebApplicationFactory<Program> factory, string method, string ip = "192.0.2.1")
     {
         using var client = new HttpClient(factory.Server.CreateHandler(context =>
-            context.Connection.RemoteIpAddress = IPAddress.Parse(ip)))
-        {
-            BaseAddress = new Uri("https://localhost")
-        };
+            context.Connection.RemoteIpAddress = IPAddress.Parse(ip)));
+        client.BaseAddress = new Uri("https://localhost");
         return method == "POST"
             ? await client.PostAsJsonAsync("/api/payments", ValidRequest())
             : await client.GetAsync($"/api/payments/{Guid.NewGuid()}");
@@ -38,7 +87,7 @@ public class PaymentRateLimitingTests
     [InlineData("GET", HttpStatusCode.NotFound)]
     public async Task ExcessRequestsReturnProblemDetailsAndRetryAfter(string method, HttpStatusCode expected)
     {
-        using var factory = Factory();
+        await using var factory = Factory();
         using var client = factory.CreateClient();
         for (var i = 0; i < 2; i++)
         {
@@ -57,7 +106,7 @@ public class PaymentRateLimitingTests
     [Fact]
     public async Task ClientsHaveIndependentLimits()
     {
-        using var factory = Factory();
+        await using var factory = Factory();
         using var client = factory.CreateClient();
         using var first = await SendAsync(factory, "POST");
         using var second = await SendAsync(factory, "POST");

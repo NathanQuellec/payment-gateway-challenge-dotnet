@@ -5,14 +5,93 @@ Requires the .NET 8 SDK pinned in global.json and Docker for the optional bank s
 ## Run
 
 ```powershell
-docker compose up -d
-dotnet run --project src/PaymentGateway.Api --urls http://localhost:5000
+docker compose up --build -d --wait
+Invoke-RestMethod http://localhost:5000/health/ready
+pwsh -File scripts/smoke-test.ps1
 dotnet test PaymentGateway.sln
 ```
 
 The bank defaults to http://localhost:8080/. Override it using configuration key
 Bank:BaseUrl (environment variable Bank__BaseUrl). The bank timeout is 10 seconds.
 Tests use a controlled HTTP handler and do not require Docker.
+
+See README.md for native SDK startup, port overrides and request examples.
+
+## Architecture and implemented improvements
+
+```mermaid
+flowchart LR
+    Client --> Middleware[Tracing, errors and rate limiting]
+    Middleware --> Controller[PaymentsController]
+    Controller --> Service[PaymentsService]
+    Service --> Validation[PaymentValidationService]
+    Service --> Bank[BankClientService]
+    Bank --> Simulator[Acquiring bank / simulator]
+    Service --> Repository[Concurrent in-memory repository]
+    Middleware -. HTTP traces and metrics .-> Collector[OpenTelemetry collector]
+    Bank -. bank latency and spans .-> Collector
+```
+
+### Observability
+
+Logs are JSON with trace/span scopes. Responses include `X-Trace-Id`, and problem
+details include the same `traceId`. OpenTelemetry instruments incoming ASP.NET
+requests, outgoing HttpClient requests and a `payment.process` application span.
+Health requests are excluded from trace collection. The service name and custom
+instrumentation source/meter name are `PaymentGateway.Api`.
+
+| Instrument | Meaning |
+| --- | --- |
+| `payments.processed` | Counter tagged with authorized, declined, rejected or bank_failure outcome |
+| `bank.authorization.duration` | Histogram of bank request duration in seconds, including failures |
+| `payments.rate_limit.rejections` | Counter of requests rejected by throttling |
+
+Labels are bounded: no payment IDs, card numbers, CVVs or authorization codes.
+Application logging does not record request/response bodies or arbitrary
+exception messages. The central error handler logs exception type and status;
+the framework's duplicate raw exception logging is filtered. Tests capture logs
+and check that submitted values do not leak. HTTP instrumentation supplies
+standard server/client latency and request metrics.
+
+OTLP export is enabled only when `OTEL_EXPORTER_OTLP_ENDPOINT` is configured.
+Compose includes a collector that emits trace summaries to logs and exports
+Prometheus metrics at localhost:9464/metrics. Prometheus normalizes instrument
+names and units (dots become underscores; counters may gain `_total`). Compose
+sets `OTEL_METRIC_EXPORT_INTERVAL=5000` milliseconds. The collector is an
+inspection/export setup, not a retained trace store or monitoring dashboard.
+
+### Packaging and hosting
+
+The multi-stage Dockerfile publishes using the serviced .NET 8 SDK and runs using
+the ASP.NET 8 runtime as the non-root `app` user. `.dockerignore` excludes build
+outputs, tests and source-control metadata. Compose starts the API, the unchanged
+bank simulator and the telemetry collector. Published ports bind to localhost.
+
+Simulator readiness is checked before API startup. The CI smoke job additionally
+polls `/health/ready`: a running container is not proof of API readiness. Both
+`/health/live` and `/health/ready` currently check application responsiveness.
+They do not submit payments or call the bank, and are outside payment quotas.
+An unavailable bank still permits retrieval of stored payments; these probes do
+not guarantee that an authorization will succeed.
+
+HTTPS redirection is enabled by default and explicitly disabled for the local
+HTTP container. Forwarded headers run before rate limiting, trusting only the
+framework's loopback defaults and explicitly configured proxy networks. Real
+proxy deployments must also restrict direct access to the backend.
+
+### API and code design
+
+`ApiExceptionHandler` centralizes validation, bank and unexpected-error mappings.
+Unexpected failures return generic 500 problem details; controllers focus on
+successful responses. `ApiProblems` shares rejection response construction
+between model binding and payment validation. Model-binding error keys are
+restricted to known request fields, preventing submitted JSON property names
+from appearing in errors. Every problem response carries a trace identifier.
+
+Validation predicates are ordinary methods rather than stored delegate
+properties. `PaymentValidationException` now uses its Exceptions namespace.
+Existing service/bank boundaries remain; a repository interface is deferred
+until another implementation or a concrete testing need justifies it.
 
 ## API
 
@@ -67,11 +146,13 @@ Configure `RateLimiting:Payments:SubmissionPermitLimit`, `LookupPermitLimit` and
 invalid values prevent application startup.
 
 Counters are local to each API process and reset on restart. Clients sharing an
-IP address share a quota. The application uses the connection IP and does not
-trust forwarded IP headers. Behind a reverse proxy, configure forwarded-header
-middleware with explicitly trusted proxies before rate limiting to use original
-client IPs; otherwise clients share the proxy's quota. Use an upstream shared
-limiter when quotas must span multiple API instances.
+IP address share a quota. Forwarded headers are accepted only from loopback or
+networks explicitly configured in `Hosting:KnownProxyNetworks` (environment
+variable `Hosting__KnownProxyNetworks__0`). Without a trusted proxy configuration,
+clients behind a proxy share its quota. Use an upstream shared limiter when
+quotas must span instances. On .NET 8, Retry-After is a conservative window
+estimate, typically 60 seconds, rather than a precise countdown. Rejections do
+not restart the window.
 
 ### Payment processing
 
@@ -97,7 +178,8 @@ limiter when quotas must span multiple API instances.
 The GitHub Actions workflow in `.github/workflows/ci.yml` runs on pushes, pull
 requests, manual dispatch and Mondays at 07:00 UTC. Independent jobs run the
 tests, enforce compiler and .NET analyzer warnings as errors, audit direct and
-transitive NuGet dependencies, and scan C# with CodeQL's security-extended suite.
+transitive NuGet dependencies. The separate `.github/workflows/codeql.yml`
+workflow scans C# with CodeQL's security-extended suite on the same triggers.
 The quality job enables build-time code style diagnostics; it does not enforce
 whitespace formatting. Test results and coverage are retained for 14 days.
 
@@ -117,3 +199,43 @@ invocation, request mapping, malformed bank responses, transport failures and
 cancellation. API integration tests exercise the real service, validator,
 repository and HTTP bank adapter, including POST followed by GET, masking,
 unknown IDs, invalid input and bank unavailability.
+
+Additional tests verify error trace correlation, sensitive-data suppression in
+responses and captured logs, generic unexpected-error handling, lightweight
+health checks, concurrent throttling, rejection before bank calls and allowance
+replenishment. The framework limiter uses a real short timer for the reset test;
+it does not accept the application's TimeProvider.
+
+CI also builds the Docker stack and runs `scripts/smoke-test.ps1` against the real
+bank simulator. This covers approval, decline, retrieval, masking, validation,
+trace correlation and bank unavailability, and always stops the stack afterward.
+The simulator configuration remains unchanged.
+
+## Future improvements
+
+1. **Durable storage and reconciliation:** persist payment attempts/outcomes in
+   a database with schema migrations; model pending/unknown outcomes and reconcile
+   bank authorizations whose responses were lost. Resolve persistence before
+   introducing multiple API instances.
+2. **Idempotency:** define key scope, payload matching, concurrent duplicates,
+   expiry and replay behavior. Coordinate with the bank's idempotency contract
+   before adding retries; gateway-only keys cannot guarantee bank side-effect safety.
+3. **Authentication and merchant isolation:** authenticate callers and authorize
+   lookups against payment ownership; introduce appropriate secrets management.
+4. **AWS deployment with Terraform and GitHub Actions:** provision ECR, ECS
+   Fargate, networking, an HTTPS load balancer with ACM, CloudWatch logs/alarms
+   and scoped IAM roles. Use encrypted/versioned remote Terraform state with
+   locking, GitHub OIDC, reviewed plans and protected deployment environments.
+   Build, scan and publish immutable image digests, deploy only after CI passes,
+   verify health and support rollback. Include cost estimates and teardown
+   instructions. This is a future proposal: no AWS resources, Terraform scripts
+   or deployment workflows are included in this implementation.
+5. **Operational monitoring:** connect OTLP to a retained telemetry backend,
+   add dashboards and alerts for bank latency/errors and rejection spikes, and
+   define service-level objectives, sampling and telemetry retention policies.
+6. **Shared throttling and load testing:** enforce quotas across instances with
+   an upstream/shared limiter; measure burst behavior and choose limits using
+   realistic traffic, while preserving client-IP trust boundaries.
+7. **Delivery hardening:** pin container/action versions to reviewed digests,
+   automate updates, scan images, generate SBOMs, and test graceful shutdown and
+   cancellation against slow real HTTP responses.

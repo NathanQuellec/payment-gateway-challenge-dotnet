@@ -6,6 +6,7 @@ using System.Text.Json;
 using PaymentGateway.Api.Exceptions;
 using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Models.Responses;
+using PaymentGateway.Api.Observability;
 
 namespace PaymentGateway.Api.Services.impl;
 
@@ -46,6 +47,7 @@ public sealed class BankClientService(HttpClient httpClient, ILogger<BankClientS
         }
         finally
         {
+            PaymentTelemetry.RecordBankDuration(Stopwatch.GetElapsedTime(startedAt));
             logger.LogDebug("Acquiring bank authorization request completed in {ElapsedMilliseconds} ms.",
                 Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds);
         }
