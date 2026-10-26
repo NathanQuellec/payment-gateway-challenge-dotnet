@@ -37,62 +37,8 @@ jobs:
         if: always()
         run: docker compose down
 
-  code-quality:
-    name: Code quality (.NET analyzers)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Set up .NET SDK
-        uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-
-      - name: Restore dependencies
-        run: dotnet restore PaymentGateway.sln
-
-      - name: Build with compiler, analyzer and code style warnings as errors
-        run: >-
-          dotnet build PaymentGateway.sln
-          --configuration Release --no-restore
-          -warnaserror
-          -p:EnableNETAnalyzers=true
-          -p:AnalysisLevel=8.0
-          -p:EnforceCodeStyleInBuild=true
-
-  dependency-security:
-    name: NuGet vulnerability audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Set up .NET SDK
-        uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-
-      # Restore fails on vulnerability warnings, including low severity,
-      # and on errors retrieving vulnerability data.
-      - name: Audit direct and transitive dependencies
-        run: >-
-          dotnet restore PaymentGateway.sln --force --no-cache
-          -p:NuGetAudit=true
-          -p:NuGetAuditMode=all
-          -p:NuGetAuditLevel=low
-          -p:TreatWarningsAsErrors=true
-
   build-and-test:
-    name: Build and test (.NET 8)
+    name: Audit, build and test (.NET 8)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -111,11 +57,23 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Restore dependencies
-        run: dotnet restore PaymentGateway.sln
+      # Restore once and fail on vulnerabilities of any severity or unavailable audit data.
+      - name: Restore and audit dependencies
+        run: >-
+          dotnet restore PaymentGateway.sln --force --no-cache
+          -p:NuGetAudit=true
+          -p:NuGetAuditMode=all
+          -p:NuGetAuditLevel=low
+          -p:TreatWarningsAsErrors=true
 
-      - name: Build
-        run: dotnet build PaymentGateway.sln --configuration Release --no-restore
+      - name: Build with compiler, analyzer and code style warnings as errors
+        run: >-
+          dotnet build PaymentGateway.sln
+          --configuration Release --no-restore
+          -warnaserror
+          -p:EnableNETAnalyzers=true
+          -p:AnalysisLevel=8.0
+          -p:EnforceCodeStyleInBuild=true
 
       - name: Test
         run: >-

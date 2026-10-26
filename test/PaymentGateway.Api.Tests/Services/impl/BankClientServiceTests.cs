@@ -30,7 +30,7 @@ public class BankClientServiceTests
             Assert.Equal("012", body.RootElement.GetProperty("cvv").GetString());
             Assert.Equal("GBP", body.RootElement.GetProperty("currency").GetString());
             Assert.Equal(100, body.RootElement.GetProperty("amount").GetInt32());
-            return new(HttpStatusCode.OK)
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new
                 {
@@ -39,10 +39,11 @@ public class BankClientServiceTests
                 })
             };
         });
-        using var http = new HttpClient(handler) { BaseAddress = new("http://bank/") };
+        using var http = new HttpClient(handler);
+        http.BaseAddress = new Uri("http://bank/");
         var payment = ValidRequest();
         payment.ExpiryMonth = expiryMonth;
-        Assert.Equal(authorized, await new BankClientService(http, NullLogger<BankClientService>.Instance).AuthorizeAsync(payment, default));
+        Assert.Equal(authorized, await new BankClientService(http, NullLogger<BankClientService>.Instance).AuthorizeAsync(payment, CancellationToken.None));
     }
 
     [Theory]
@@ -62,7 +63,8 @@ public class BankClientServiceTests
     {
         using var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(new HttpResponseMessage((HttpStatusCode)status)
         { Content = new StringContent(json, Encoding.UTF8, "application/json") }));
-        using var http = new HttpClient(handler) { BaseAddress = new("http://bank/") };
+        using var http = new HttpClient(handler);
+        http.BaseAddress = new Uri("http://bank/");
         var exception = await Assert.ThrowsAsync<BankException>(() => new BankClientService(http, NullLogger<BankClientService>.Instance).AuthorizeAsync(ValidRequest(), default));
         Assert.Equal(expected, exception.StatusCode);
     }
@@ -71,9 +73,10 @@ public class BankClientServiceTests
     public async Task CallerCancellationIsPreserved()
     {
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
         using var handler = new StubHttpMessageHandler((_, token) => Task.FromCanceled<HttpResponseMessage>(token));
-        using var http = new HttpClient(handler) { BaseAddress = new("http://bank/") };
+        using var http = new HttpClient(handler);
+        http.BaseAddress = new Uri("http://bank/");
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new BankClientService(http, NullLogger<BankClientService>.Instance).AuthorizeAsync(ValidRequest(), cancellation.Token));
     }
 
@@ -83,7 +86,8 @@ public class BankClientServiceTests
     public async Task MapsTransportFailures(bool timeout, int expected)
     {
         using var handler = new StubHttpMessageHandler((_, _) => throw (timeout ? (Exception)new TaskCanceledException() : new HttpRequestException()));
-        using var http = new HttpClient(handler) { BaseAddress = new("http://bank/") };
+        using var http = new HttpClient(handler);
+        http.BaseAddress = new Uri("http://bank/");
         var exception = await Assert.ThrowsAsync<BankException>(() => new BankClientService(http, NullLogger<BankClientService>.Instance).AuthorizeAsync(ValidRequest(), default));
         Assert.Equal(expected, exception.StatusCode);
     }

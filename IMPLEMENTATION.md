@@ -227,12 +227,13 @@ not restart the window.
 
 ## Verification
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` runs on pushes, pull
-requests, manual dispatch and Mondays at 07:00 UTC. Independent jobs run the
-tests, enforce compiler and .NET analyzer warnings as errors, audit direct and
-transitive NuGet dependencies. The separate `.github/workflows/codeql.yml`
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs on pushes to main,
+pull requests, manual dispatch and Mondays at 07:00 UTC. One .NET job restores
+and audits direct/transitive dependencies once, builds once with compiler and
+analyzer warnings as errors, then runs tests against that build with coverage.
+The container smoke test remains a separate job. The separate `.github/workflows/codeql.yml`
 workflow scans C# with CodeQL's security-extended suite on the same triggers.
-The quality job enables build-time code style diagnostics; it does not enforce
+The .NET job enables build-time code style diagnostics; it does not enforce
 whitespace formatting. Test results and coverage are retained for 14 days.
 
 The dependency audit fails on known vulnerabilities of any severity or failure
