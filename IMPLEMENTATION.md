@@ -79,10 +79,11 @@ The quality job enables build-time code style diagnostics; it does not enforce
 whitespace formatting. Test results and coverage are retained for 14 days.
 
 The dependency audit fails on known vulnerabilities of any severity or failure
-to retrieve vulnerability information. Initial auditing identified advisories
-for Swashbuckle.AspNetCore.SwaggerUI 6.2.3, Newtonsoft.Json 9.0.1,
-System.Net.Http 4.3.0 and System.Text.RegularExpressions 4.3.0; dependency upgrades
-are needed before this check passes. CodeQL publishes findings to GitHub code
+to retrieve vulnerability information. Swashbuckle.AspNetCore 6.9.0,
+Microsoft.NET.Test.Sdk 17.11.1, xunit 2.9.3 and its Visual Studio runner 2.8.2
+resolve the previously reported Swagger UI and transitive test dependency
+vulnerabilities. The full dependency audit passed after these updates.
+CodeQL publishes findings to GitHub code
 scanning; findings do not automatically fail the analysis job. Configure required
 checks and code scanning merge protection in repository settings to enforce
 merge restrictions. CodeQL is available for public repositories; private
