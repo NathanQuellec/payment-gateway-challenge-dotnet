@@ -59,7 +59,7 @@ public class PaymentsService(
         {
             Id = Guid.NewGuid(),
             Status = authorized ? PaymentStatus.Authorized : PaymentStatus.Declined,
-            CardNumberLastFour = paymentRequest.CardNumber![^4..],
+            CardNumberLastFour = paymentRequest.CardNumber![^Constants.Payment.VisibleCardNumberDigits..],
             ExpiryMonth = paymentRequest.ExpiryMonth!.Value,
             ExpiryYear = paymentRequest.ExpiryYear!.Value,
             Currency = paymentRequest.Currency!,

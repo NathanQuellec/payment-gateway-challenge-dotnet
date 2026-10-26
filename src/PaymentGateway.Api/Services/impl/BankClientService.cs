@@ -22,7 +22,7 @@ public sealed class BankClientService(HttpClient httpClient, ILogger<BankClientS
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning("Acquiring bank authorization request timed out.");
-            throw new BankException(504);
+            throw new BankException(StatusCodes.Status504GatewayTimeout);
         }
         catch (OperationCanceledException)
         {
@@ -32,17 +32,17 @@ public sealed class BankClientService(HttpClient httpClient, ILogger<BankClientS
         catch (HttpRequestException)
         {
             logger.LogWarning("Acquiring bank authorization request failed due to a transport error.");
-            throw new BankException(503);
+            throw new BankException(StatusCodes.Status503ServiceUnavailable);
         }
         catch (JsonException)
         {
             logger.LogWarning("Acquiring bank returned an invalid JSON response.");
-            throw new BankException(502);
+            throw new BankException(StatusCodes.Status502BadGateway);
         }
         catch (NotSupportedException)
         {
             logger.LogWarning("Acquiring bank returned an unsupported response format.");
-            throw new BankException(502);
+            throw new BankException(StatusCodes.Status502BadGateway);
         }
         finally
         {
@@ -54,7 +54,7 @@ public sealed class BankClientService(HttpClient httpClient, ILogger<BankClientS
     private async Task<bool> SendAuthorizationAsync(PaymentRequest request, CancellationToken cancellationToken)
     {
         using var response = await httpClient.PostAsJsonAsync(
-            "payments", CreateBankRequest(request), cancellationToken);
+            Constants.Bank.PaymentsPath, CreateBankRequest(request), cancellationToken);
 
         EnsureSuccessfulResponse(response);
         return await ReadAuthorizationDecisionAsync(response, cancellationToken);
@@ -63,7 +63,7 @@ public sealed class BankClientService(HttpClient httpClient, ILogger<BankClientS
     private static BankRequest CreateBankRequest(PaymentRequest request) => new()
     {
         CardNumber = request.CardNumber,
-        ExpiryDate = string.Format(CultureInfo.InvariantCulture, "{0:00}/{1:0000}",
+        ExpiryDate = string.Format(CultureInfo.InvariantCulture, Constants.Bank.ExpiryDateFormat,
             request.ExpiryMonth, request.ExpiryYear),
         Currency = request.Currency,
         Amount = request.Amount,
@@ -76,7 +76,9 @@ public sealed class BankClientService(HttpClient httpClient, ILogger<BankClientS
             return;
 
         logger.LogWarning("Acquiring bank returned HTTP status {StatusCode}.", (int)response.StatusCode);
-        throw new BankException(response.StatusCode == HttpStatusCode.ServiceUnavailable ? 503 : 502);
+        throw new BankException(response.StatusCode == HttpStatusCode.ServiceUnavailable
+            ? StatusCodes.Status503ServiceUnavailable
+            : StatusCodes.Status502BadGateway);
     }
 
     private async Task<bool> ReadAuthorizationDecisionAsync(
@@ -86,13 +88,13 @@ public sealed class BankClientService(HttpClient httpClient, ILogger<BankClientS
         if (result?.Authorized is not { } authorized)
         {
             logger.LogWarning("Acquiring bank response did not contain an authorization decision.");
-            throw new BankException(502);
+            throw new BankException(StatusCodes.Status502BadGateway);
         }
 
         if (authorized && string.IsNullOrWhiteSpace(result.AuthorizationCode))
         {
             logger.LogWarning("Acquiring bank approved the payment without an authorization code.");
-            throw new BankException(502);
+            throw new BankException(StatusCodes.Status502BadGateway);
         }
 
         logger.LogDebug("Acquiring bank returned authorization decision {Authorized}.", authorized);

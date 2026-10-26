@@ -4,8 +4,10 @@ namespace PaymentGateway.Api.Predicates;
 
 public sealed class PaymentValidationPredicates(TimeProvider timeProvider)
 {
-    public Predicate<string?> IsInvalidCardNumber { get; } = value => !IsDigits(value, 14, 19);
-    public Predicate<string?> IsInvalidCvv { get; } = value => !IsDigits(value, 3, 4);
+    public Predicate<string?> IsInvalidCardNumber { get; } = value =>
+        !IsDigits(value, Constants.Payment.MinimumCardNumberLength, Constants.Payment.MaximumCardNumberLength);
+    public Predicate<string?> IsInvalidCvv { get; } = value =>
+        !IsDigits(value, Constants.Payment.MinimumCvvLength, Constants.Payment.MaximumCvvLength);
     public Predicate<string?> IsInvalidCurrency { get; } = value => value is not ("GBP" or "USD" or "EUR");
     public Predicate<int?> IsInvalidAmount { get; } = value => value is null or <= 0;
 

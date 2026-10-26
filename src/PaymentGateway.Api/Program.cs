@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using PaymentGateway.Api;
+using PaymentGateway.Api.Models;
 using PaymentGateway.Api.Data.Repositories;
 using PaymentGateway.Api.Services;
 using PaymentGateway.Api.Services.impl;
@@ -18,10 +20,10 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
             .ToDictionary(entry => entry.Key, _ => new[] { "A required value is missing or invalid." });
         var problem = new ValidationProblemDetails(errors)
         {
-            Status = 400,
-            Title = "The payment request was rejected."
+            Status = StatusCodes.Status400BadRequest,
+            Title = Constants.Payment.RejectedProblemTitle
         };
-        problem.Extensions["paymentStatus"] = "Rejected";
+        problem.Extensions[Constants.Payment.StatusExtensionKey] = nameof(PaymentStatus.Rejected);
         return new BadRequestObjectResult(problem);
     };
 });
@@ -37,8 +39,8 @@ builder.Services.AddSingleton<IPaymentValidationService, PaymentValidationServic
 builder.Services.AddScoped<IPaymentsService, PaymentsService>();
 builder.Services.AddHttpClient<IBankClient, BankClientService>(client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["Bank:BaseUrl"] ?? "http://localhost:8080/");
-    client.Timeout = TimeSpan.FromSeconds(10);
+    client.BaseAddress = new Uri(builder.Configuration[Constants.Bank.BaseUrlConfigurationKey] ?? Constants.Bank.DefaultBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(Constants.Bank.TimeoutSeconds);
 });
 
 var app = builder.Build();

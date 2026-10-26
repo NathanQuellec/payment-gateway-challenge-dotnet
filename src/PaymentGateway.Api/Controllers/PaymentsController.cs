@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 
 using PaymentGateway.Api.Exceptions;
+using PaymentGateway.Api.Models;
 using PaymentGateway.Api.Models.Requests;
 using PaymentGateway.Api.Models.Responses;
 using PaymentGateway.Api.Services;
@@ -86,9 +87,9 @@ public class PaymentsController(IPaymentsService paymentsService) : ControllerBa
         {
             var problem = new ValidationProblemDetails(exception.Errors)
             {
-                Status = 400,
-                Title = "The payment request was rejected.",
-                Extensions = { ["paymentStatus"] = "Rejected" }
+                Status = StatusCodes.Status400BadRequest,
+                Title = Constants.Payment.RejectedProblemTitle,
+                Extensions = { [Constants.Payment.StatusExtensionKey] = nameof(PaymentStatus.Rejected) }
             };
             return BadRequest(problem);
         }

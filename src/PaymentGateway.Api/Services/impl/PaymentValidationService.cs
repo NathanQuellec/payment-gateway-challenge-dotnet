@@ -22,13 +22,15 @@ public class PaymentValidationService(TimeProvider timeProvider) : IPaymentValid
     private void ValidateCardNumber(PaymentRequest request, Dictionary<string, string[]> errors)
     {
         if (_predicates.IsInvalidCardNumber(request.CardNumber))
-            errors[nameof(request.CardNumber)] = ["Card number must contain 14-19 ASCII digits."];
+            errors[nameof(request.CardNumber)] =
+                [$"Card number must contain {Constants.Payment.MinimumCardNumberLength}-{Constants.Payment.MaximumCardNumberLength} ASCII digits."];
     }
 
     private void ValidateCvv(PaymentRequest request, Dictionary<string, string[]> errors)
     {
         if (_predicates.IsInvalidCvv(request.Cvv))
-            errors[nameof(request.Cvv)] = ["CVV must contain 3-4 ASCII digits."];
+            errors[nameof(request.Cvv)] =
+                [$"CVV must contain {Constants.Payment.MinimumCvvLength}-{Constants.Payment.MaximumCvvLength} ASCII digits."];
     }
 
     private void ValidateExpiryMonth(PaymentRequest request, Dictionary<string, string[]> errors)
