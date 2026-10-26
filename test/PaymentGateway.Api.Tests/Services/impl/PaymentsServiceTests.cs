@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using PaymentGateway.Api.Models;
 using PaymentGateway.Api.Models.Requests;
-using PaymentGateway.Api.Repositories;
+using PaymentGateway.Api.Data.Repositories;
 using PaymentGateway.Api.Services;
 using PaymentGateway.Api.Services.impl;
 using PaymentGateway.Api.Tests.TestSupport;
@@ -35,7 +35,7 @@ public class PaymentsServiceTests
         Assert.NotEqual(Guid.Empty, payment.Id);
         Assert.Equal(expected, payment.Status);
         Assert.Equal("0001", payment.CardNumberLastFour);
-        var stored = Assert.IsType<Payment>(repository.GetPaymentById(payment.Id));
+        var stored = Assert.IsType<Payment>(repository.GetPaymentRecordById(payment.Id));
         Assert.Equal(payment.Id, stored.Id);
         Assert.Equal(payment.Status, stored.Status);
         Assert.Equal(payment.CardNumberLastFour, stored.CardNumberLastFour);
