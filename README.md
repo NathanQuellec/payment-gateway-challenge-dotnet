@@ -13,26 +13,26 @@ Requires Docker with Compose v2:
 
 ```sh
 docker compose up --build -d --wait
-curl --fail http://localhost:5000/health/ready
+curl --fail http://localhost:15000/health/ready
 ```
 
 Browser-accessible pages using the default Compose ports:
 
 | Page | Address |
 | --- | --- |
-| Swagger UI | [Open Swagger](http://localhost:5000/swagger) |
+| Swagger UI | [Open Swagger](http://localhost:15000/swagger/index.html) |
 | Grafana dashboard | [Open payment dashboard](http://localhost:15300/d/payment-gateway/payment-gateway) |
 | Prometheus query UI | [Open Prometheus](http://localhost:9090) |
-| Liveness | [Check liveness](http://localhost:5000/health/live) |
-| Readiness | [Check readiness](http://localhost:5000/health/ready) |
+| Liveness | [Check liveness](http://localhost:15000/health/live) |
+| Readiness | [Check readiness](http://localhost:15000/health/ready) |
 | Raw metrics | [View metrics](http://localhost:9464/metrics) |
 | Simulator administration | [Open simulator administration](http://localhost:2525) |
 
 All published ports bind to localhost. Set `API_PORT`, `BANK_PORT`,
 `BANK_ADMIN_PORT`, `METRICS_PORT`, or `OTLP_PORT` before starting Compose if a port is occupied.
 The dashboard ports can also be changed with `GRAFANA_PORT` and `PROMETHEUS_PORT`.
-For example, `API_PORT=5001 docker compose up --build -d` on Bash, or
-`$env:API_PORT='5001'` before the same command in PowerShell.
+For example, `API_PORT=15001 docker compose up --build -d` on Bash, or
+`$env:API_PORT='15001'` before the same command in PowerShell.
 
 ```sh
 docker compose logs -f api otel-collector
@@ -75,7 +75,7 @@ serviced .NET 8 SDK and ASP.NET runtime images.
 
 ```sh
 docker compose up -d bank_simulator otel-collector
-dotnet run --project src/PaymentGateway.Api --urls http://localhost:5000
+dotnet run --project src/PaymentGateway.Api --urls http://localhost:15000
 dotnet test PaymentGateway.sln
 ```
 
@@ -84,7 +84,7 @@ dotnet test PaymentGateway.sln
 Submit a synthetic payment (Bash; use `curl.exe` instead of PowerShell's curl alias):
 
 ```sh
-curl -i http://localhost:5000/api/payments \
+curl -i http://localhost:15000/api/payments \
   -H 'Content-Type: application/json' \
   -d '{"cardNumber":"2222405343240001","expiryMonth":12,"expiryYear":2099,"currency":"GBP","amount":100,"cvv":"012"}'
 ```
@@ -144,7 +144,7 @@ Compose stack, run the real simulator smoke tests with PowerShell 7:
 pwsh -File scripts/smoke-test.ps1
 ```
 
-Use `-BaseUrl http://localhost:5001` when overriding the API port. The smoke script
+Use `-BaseUrl http://localhost:15001` when overriding the API port. The smoke script
 tests approval, decline, retrieval, masking, invalid input, trace correlation and
 bank unavailability. Use a fresh API instance if earlier requests exhausted its
 rate limit.

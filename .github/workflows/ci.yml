@@ -26,7 +26,7 @@ jobs:
       - name: Start application stack
         run: docker compose up -d --build --wait --wait-timeout 180 api
       - name: Wait for API readiness
-        run: curl --fail --retry 20 --retry-delay 2 --retry-connrefused http://localhost:5000/health/ready
+        run: curl --fail --retry 20 --retry-delay 2 --retry-connrefused http://localhost:15000/health/ready
       - name: Exercise real bank contract
         shell: pwsh
         run: ./scripts/smoke-test.ps1

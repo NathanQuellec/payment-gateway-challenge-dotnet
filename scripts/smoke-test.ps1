@@ -1,4 +1,4 @@
-param([string]$BaseUrl = 'http://localhost:5000')
+param([string]$BaseUrl = 'http://localhost:15000')
 $ErrorActionPreference = 'Stop'
 function Get-ResponseText($response) {
     if ($response.Content -is [byte[]]) { return [System.Text.Encoding]::UTF8.GetString($response.Content) }

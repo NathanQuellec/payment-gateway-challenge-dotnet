@@ -6,7 +6,7 @@ Requires the .NET 8 SDK pinned in global.json and Docker for the optional bank s
 
 ```powershell
 docker compose up --build -d --wait
-Invoke-RestMethod http://localhost:5000/health/ready
+Invoke-RestMethod http://localhost:15000/health/ready
 pwsh -File scripts/smoke-test.ps1
 dotnet test PaymentGateway.sln
 ```
@@ -106,11 +106,11 @@ after starting the collector with `docker compose up -d otel-collector`. Send a
 request to the API and wait for the export interval before refreshing `/metrics`.
 Inspect exporter/collector errors with `docker compose logs api otel-collector`.
 
-If Windows prevents Docker from binding the default API port 5000, set
-`$env:API_PORT='15000'` in PowerShell before `docker compose up --build -d api`.
-The API/Swagger then uses http://localhost:15000; the metrics URL remains
-http://localhost:9464/metrics. The collector has no application data to expose
-until an instrumented API process exports measurements.
+Compose publishes the API on port 15000 by default. If that port is occupied,
+set `$env:API_PORT='15001'` in PowerShell before starting Compose and use the new
+port in API/Swagger URLs. The metrics URL remains http://localhost:9464/metrics.
+The collector has no application data to expose until an instrumented API
+process exports measurements.
 
 ### Packaging and hosting
 
