@@ -25,7 +25,7 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
 
         problem.Extensions[Constants.Telemetry.TraceIdExtensionKey] = ApiProblems.TraceId(context);
         context.Response.StatusCode = problem.Status!.Value;
-        await context.Response.WriteAsJsonAsync(problem, options: null,
+        await context.Response.WriteAsJsonAsync((object)problem, options: null,
             contentType: System.Net.Mime.MediaTypeNames.Application.ProblemJson, cancellationToken: cancellationToken);
         return true;
     }

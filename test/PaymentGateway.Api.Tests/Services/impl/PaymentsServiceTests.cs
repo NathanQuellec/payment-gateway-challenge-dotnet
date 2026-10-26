@@ -35,10 +35,15 @@ public class PaymentsServiceTests
         var repository = new PaymentsRepository();
         var service = new PaymentsService(repository, new PaymentValidationService(new FixedTimeProvider()), bank,
             NullLogger<PaymentsService>.Instance);
-        var payment = await service.ProcessPayment(ValidRequest());
+        var request = ValidRequest();
+        var payment = await service.ProcessPayment(request);
         Assert.NotEqual(Guid.Empty, payment.Id);
         Assert.Equal(expected, payment.Status);
         Assert.Equal("0001", payment.CardNumberLastFour);
+        Assert.Equal(request.ExpiryMonth, payment.ExpiryMonth);
+        Assert.Equal(request.ExpiryYear, payment.ExpiryYear);
+        Assert.Equal(request.Currency, payment.Currency);
+        Assert.Equal(request.Amount, payment.Amount);
         var stored = Assert.IsType<Payment>(repository.GetPaymentRecordById(payment.Id));
         Assert.Equal(payment.Id, stored.Id);
         Assert.Equal(payment.Status, stored.Status);
@@ -62,6 +67,33 @@ public class PaymentsServiceTests
             NullLogger<PaymentsService>.Instance);
         var exception = await Assert.ThrowsAsync<PaymentValidationException>(() => service.ProcessPayment(new()));
         Assert.Equal(6, exception.Errors.Count);
+        Assert.Equal(0, bank.Calls);
+    }
+
+    [Theory]
+    [InlineData(nameof(PaymentRequest.CardNumber), "")]
+    [InlineData(nameof(PaymentRequest.CardNumber), " ")]
+    [InlineData(nameof(PaymentRequest.Cvv), "")]
+    [InlineData(nameof(PaymentRequest.Cvv), " ")]
+    [InlineData(nameof(PaymentRequest.Currency), "")]
+    [InlineData(nameof(PaymentRequest.Currency), "   ")]
+    public async Task BlankFieldNeverCallsBank(string field, string value)
+    {
+        var request = ValidRequest();
+        switch (field)
+        {
+            case nameof(PaymentRequest.CardNumber): request.CardNumber = value; break;
+            case nameof(PaymentRequest.Cvv): request.Cvv = value; break;
+            case nameof(PaymentRequest.Currency): request.Currency = value; break;
+            default: throw new ArgumentOutOfRangeException(nameof(field));
+        }
+        var bank = new FakeBank(true);
+        var service = new PaymentsService(new(), new PaymentValidationService(new FixedTimeProvider()), bank,
+            NullLogger<PaymentsService>.Instance);
+
+        var exception = await Assert.ThrowsAsync<PaymentValidationException>(() => service.ProcessPayment(request));
+
+        Assert.Equal(field, Assert.Single(exception.Errors).Key);
         Assert.Equal(0, bank.Calls);
     }
 

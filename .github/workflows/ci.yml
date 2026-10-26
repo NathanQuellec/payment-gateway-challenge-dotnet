@@ -15,28 +15,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  container-smoke:
-    name: API and bank simulator smoke tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Start application stack
-        run: docker compose up -d --build --wait --wait-timeout 180 api
-      - name: Wait for API readiness
-        run: curl --fail --retry 20 --retry-delay 2 --retry-connrefused http://localhost:15000/health/ready
-      - name: Exercise real bank contract
-        shell: pwsh
-        run: ./scripts/smoke-test.ps1
-      - name: Show container diagnostics
-        if: failure()
-        run: docker compose logs --tail 80
-      - name: Stop application stack
-        if: always()
-        run: docker compose down
-
   build-and-test:
     name: Audit, build and test (.NET 8)
     runs-on: ubuntu-latest

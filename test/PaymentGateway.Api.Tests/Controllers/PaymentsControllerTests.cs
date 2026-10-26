@@ -85,4 +85,42 @@ public class PaymentsControllerTests
         var response = await client.PostAsJsonAsync("/api/payments", ValidRequest());
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
+
+    [Theory]
+    [InlineData("cardNumber")]
+    [InlineData("expiryMonth")]
+    [InlineData("expiryYear")]
+    [InlineData("currency")]
+    [InlineData("amount")]
+    [InlineData("cvv")]
+    public async Task ApiRejectsEachMissingOrNullFieldWithoutCallingBank(string field)
+    {
+        var bankCalls = 0;
+        using var factory = Factory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            services.AddHttpClient<IBankClient, BankClientService>()
+                .ConfigurePrimaryHttpMessageHandler(() => new StubHttpMessageHandler((_, _) =>
+                {
+                    Interlocked.Increment(ref bankCalls);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = JsonContent.Create(new { authorized = true, authorization_code = "test-approval" })
+                    });
+                }))));
+        using var client = factory.CreateClient();
+        foreach (var omit in new[] { true, false })
+        {
+            var body = JsonSerializer.SerializeToNode(ValidRequest(), new JsonSerializerOptions(JsonSerializerDefaults.Web))!.AsObject();
+            if (omit) body.Remove(field);
+            else body[field] = null;
+
+            using var response = await client.PostAsync("/api/payments",
+                new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"));
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal("Rejected", problem.RootElement.GetProperty("paymentStatus").GetString());
+            var error = Assert.Single(problem.RootElement.GetProperty("errors").EnumerateObject());
+            Assert.Equal(field, error.Name, ignoreCase: true);
+        }
+        Assert.Equal(0, bankCalls);
+    }
 }

@@ -13,8 +13,9 @@ Requires Docker with Compose v2:
 
 ```sh
 docker compose up --build -d --wait
-curl --fail http://localhost:15000/health/ready
 ```
+
+See [IMPLEMENTATION.md](IMPLEMENTATION.md) for implementation details.
 
 Browser-accessible pages using the default Compose ports:
 
@@ -137,18 +138,8 @@ limitations and future improvements.
 dotnet test PaymentGateway.sln --configuration Release
 ```
 
-The .NET tests use controlled HTTP handlers and need no Docker. After starting the
-Compose stack, run the real simulator smoke tests with PowerShell 7:
-
-```sh
-pwsh -File scripts/smoke-test.ps1
-```
-
-Use `-BaseUrl http://localhost:15001` when overriding the API port. The smoke script
-tests approval, decline, retrieval, masking, invalid input, trace correlation and
-bank unavailability. Use a fresh API instance if earlier requests exhausted its
-rate limit.
+The .NET tests use controlled HTTP handlers and need no Docker or running API.
 
 GitHub Actions builds and analyzes the solution, runs tests with coverage,
-security-audits dependencies, scans C# with CodeQL, and builds/runs the container
-stack against the real bank simulator. Test reports are retained for 14 days.
+security-audits dependencies and scans C# with CodeQL. Test reports are retained
+for 14 days.

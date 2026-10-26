@@ -9,9 +9,9 @@ using PaymentGateway.Api.RateLimiting;
 using PaymentGateway.Api.Services;
 using PaymentGateway.Api.Services.Impl;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
+// Logging and observability.
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 builder.Logging.Configure(options => options.ActivityTrackingOptions =
@@ -19,12 +19,15 @@ builder.Logging.Configure(options => options.ActivityTrackingOptions =
 // The exception handler emits a sanitized event; suppress the framework's raw exception log.
 builder.Logging.AddFilter(Constants.Telemetry.ExceptionMiddlewareLogCategory, LogLevel.None);
 builder.Services.AddGatewayObservability(builder.Configuration);
+
+// Hosting and error responses.
 builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddHealthChecks();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
     context.ProblemDetails.Extensions[Constants.Telemetry.TraceIdExtensionKey] = ApiProblems.TraceId(context.HttpContext));
 
+// Payment rate limiting.
 builder.Services.AddOptions<PaymentRateLimitOptions>()
     .Bind(builder.Configuration.GetSection(Constants.RateLimiting.ConfigurationSection))
     .ValidateDataAnnotations()
@@ -35,6 +38,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy<string, PaymentRateLimitPolicy>(Constants.RateLimiting.PolicyName);
 });
 
+// Controllers, JSON and API documentation.
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.Configure<ApiBehaviorOptions>(options => options.InvalidModelStateResponseFactory = ApiProblems.InvalidModelState);
@@ -44,8 +48,9 @@ builder.Services.AddSwaggerGen(options =>
     var xmlFile = $"{typeof(Program).Assembly.GetName().Name}.xml";
     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFile), includeControllerXmlComments: true);
 });
+// Payment services and acquiring bank client.
 builder.Services.AddSingleton<PaymentsRepository>();
-builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPaymentValidationService, PaymentValidationService>();
 builder.Services.AddScoped<IPaymentsService, PaymentsService>();
 builder.Services.AddHttpClient<IBankClient, BankClientService>(client =>
@@ -55,9 +60,13 @@ builder.Services.AddHttpClient<IBankClient, BankClientService>(client =>
 });
 
 var app = builder.Build();
+
+// Proxy headers and error handling precede request processing.
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+// Correlate response headers and application logs.
 app.Use(async (context, next) =>
 {
     var traceId = ApiProblems.TraceId(context);
@@ -69,6 +78,8 @@ app.Use(async (context, next) =>
     using var scope = app.Logger.BeginScope(new Dictionary<string, object> { [Constants.Telemetry.TraceIdLogProperty] = traceId });
     await next(context);
 });
+
+// Development documentation and HTTPS.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -76,11 +87,16 @@ if (app.Environment.IsDevelopment())
 }
 if (builder.Configuration.GetValue(Constants.Hosting.UseHttpsRedirectionConfigurationKey, true))
     app.UseHttpsRedirection();
+
+// Routing selects endpoints before their rate limits are applied.
 app.UseRouting();
 app.UseRateLimiter();
+
+// Payment endpoints and health probes.
 app.MapControllers();
 app.MapHealthChecks(Constants.Hosting.LivenessPath).DisableRateLimiting();
 app.MapHealthChecks(Constants.Hosting.ReadinessPath).DisableRateLimiting();
+
 app.Run();
 
 public partial class Program;
