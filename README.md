@@ -20,6 +20,8 @@ curl --fail http://localhost:5000/health/ready
 | --- | --- |
 | API | http://localhost:5000/api/payments |
 | Swagger UI | http://localhost:5000/swagger |
+| Grafana dashboard | http://localhost:15300/d/payment-gateway/payment-gateway |
+| Prometheus query UI | http://localhost:9090 |
 | Liveness / readiness | http://localhost:5000/health/live / http://localhost:5000/health/ready |
 | Prometheus metrics | http://localhost:9464/metrics |
 | Bank simulator | http://localhost:8080 |
@@ -27,6 +29,7 @@ curl --fail http://localhost:5000/health/ready
 
 All published ports bind to localhost. Set `API_PORT`, `BANK_PORT`,
 `BANK_ADMIN_PORT`, `METRICS_PORT`, or `OTLP_PORT` before starting Compose if a port is occupied.
+The dashboard ports can also be changed with `GRAFANA_PORT` and `PROMETHEUS_PORT`.
 For example, `API_PORT=5001 docker compose up --build -d` on Bash, or
 `$env:API_PORT='5001'` before the same command in PowerShell.
 
@@ -37,6 +40,32 @@ docker compose down
 
 Stopping or replacing the API loses stored payments. Swagger is enabled in the
 local Compose development environment and disabled in Production.
+
+## Metrics dashboard
+
+Open http://localhost:15300/d/payment-gateway/payment-gateway for the preconfigured
+Grafana dashboard. Local anonymous access is read-only; no login is needed to view
+charts. The dashboard shows payment outcomes, bank p95 latency, HTTP traffic and
+latency, rate-limit rejections and collector scrape health. Send payment requests
+and allow 10-15 seconds for export/scraping. Rate charts require at least two
+scrapes; request counters reset when the API restarts.
+
+To add the UI to an already running API/collector stack:
+
+```sh
+docker compose up -d --wait prometheus grafana
+```
+
+Prometheus retains metrics for up to 24 hours, subject to a 256 MB retention cap.
+Named Docker volumes preserve dashboard settings and metric history across
+container restarts. Dashboard JSON and data sources are provisioned from
+`observability/grafana/`; edit those files to change the shared dashboard.
+
+The UI binds to localhost. Administration uses username `admin` and the local
+demo password `local-demo-change-me`; set `GRAFANA_ADMIN_PASSWORD` before the
+first startup to override it. Once the Grafana volume exists, password changes
+must be made through Grafana administration. Trace summaries are still available
+through `docker compose logs -f otel-collector`.
 
 ## Run with the .NET SDK
 

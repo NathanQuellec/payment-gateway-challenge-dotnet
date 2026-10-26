@@ -30,6 +30,8 @@ flowchart LR
     Service --> Repository[Concurrent in-memory repository]
     Middleware -. HTTP traces and metrics .-> Collector[OpenTelemetry collector]
     Bank -. bank latency and spans .-> Collector
+    Collector --> Prometheus[Prometheus metrics store]
+    Prometheus --> Grafana[Grafana dashboard]
 ```
 
 ### Observability
@@ -57,8 +59,11 @@ OTLP export is enabled only when `OTEL_EXPORTER_OTLP_ENDPOINT` is configured.
 Compose includes a collector that emits trace summaries to logs and exports
 Prometheus metrics at localhost:9464/metrics. Prometheus normalizes instrument
 names and units (dots become underscores; counters may gain `_total`). Compose
-sets `OTEL_METRIC_EXPORT_INTERVAL=5000` milliseconds. The collector is an
-inspection/export setup, not a retained trace store or monitoring dashboard.
+sets `OTEL_METRIC_EXPORT_INTERVAL=5000` milliseconds. Prometheus scrapes the
+collector every five seconds and stores metrics for up to 24 hours with a 256 MB
+retention cap. Grafana provisions the metrics data source and payment dashboard
+from version-controlled files. Both use named volumes for local persistence.
+The collector does not retain traces; trace summaries remain in console logs.
 
 #### Telemetry endpoints
 
@@ -67,6 +72,8 @@ Start the stack with `docker compose up --build -d --wait`.
 | Purpose | Endpoint / command | Access |
 | --- | --- | --- |
 | Inspect exported metrics | http://localhost:9464/metrics | Browser, curl or a Prometheus scraper on the host |
+| View payment charts | http://localhost:15300/d/payment-gateway/payment-gateway | Grafana, local read-only anonymous access |
+| Query stored metrics | http://localhost:9090 | Prometheus expression browser |
 | Send traces and metrics to the collector | `http://otel-collector:4317` | OTLP over gRPC inside the Compose network; configured as `OTEL_EXPORTER_OTLP_ENDPOINT` on the API |
 | Send telemetry from an IDE / host process | `http://localhost:4317` | Published on localhost; configured in the development launch profiles |
 | Inspect trace summaries | `docker compose logs -f otel-collector` | Collector console output |
@@ -80,7 +87,17 @@ settings. Host processes cannot use the Docker-only `otel-collector` hostname.
 The metrics URL uses port 9464 by default. If `METRICS_PORT` is overridden, use
 that host port instead. Make a payment request and allow about five seconds for
 the Compose export interval before looking for custom payment metrics. There is
-no trace-viewer or dashboard endpoint in the current stack.
+no trace-viewer endpoint in the current stack. Grafana visualizes metrics only.
+
+Start the UI services with `docker compose up -d --wait prometheus grafana`.
+The dashboard refreshes every five seconds and shows process counters, outcome
+rates, bank/HTTP p95 latency, request rates and scrape health. Rates need at least
+two scrapes; sparse traffic can leave latency panels empty. Ports are localhost
+only and configurable with `GRAFANA_PORT` and `PROMETHEUS_PORT`. Viewing requires
+no login. Local demo administration uses admin/local-demo-change-me; override
+`GRAFANA_ADMIN_PASSWORD` before initializing the Grafana volume. Anonymous access
+is a Viewer role, and signup is disabled. This local configuration needs separate
+access controls before any external hosting.
 
 An HTTP 200 response with an empty metrics body means the collector has not yet
 received metrics. Check `docker compose ps`: the API must be running, not merely
@@ -265,8 +282,8 @@ The simulator configuration remains unchanged.
    verify health and support rollback. Include cost estimates and teardown
    instructions. This is a future proposal: no AWS resources, Terraform scripts
    or deployment workflows are included in this implementation.
-5. **Operational monitoring:** connect OTLP to a retained telemetry backend,
-   add dashboards and alerts for bank latency/errors and rejection spikes, and
+5. **Operational monitoring:** retain distributed traces alongside the existing
+   local metrics dashboard, add alerts for bank latency/errors and rejection spikes, and
    define service-level objectives, sampling and telemetry retention policies.
 6. **Shared throttling and load testing:** enforce quotas across instances with
    an upstream/shared limiter; measure burst behavior and choose limits using
