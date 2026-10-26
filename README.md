@@ -16,16 +16,17 @@ docker compose up --build -d --wait
 curl --fail http://localhost:5000/health/ready
 ```
 
-| Service | Address |
+Browser-accessible pages using the default Compose ports:
+
+| Page | Address |
 | --- | --- |
-| API | http://localhost:5000/api/payments |
-| Swagger UI | http://localhost:5000/swagger |
-| Grafana dashboard | http://localhost:15300/d/payment-gateway/payment-gateway |
-| Prometheus query UI | http://localhost:9090 |
-| Liveness / readiness | http://localhost:5000/health/live / http://localhost:5000/health/ready |
-| Prometheus metrics | http://localhost:9464/metrics |
-| Bank simulator | http://localhost:8080 |
-| Simulator administration | http://localhost:2525 |
+| Swagger UI | [Open Swagger](http://localhost:5000/swagger) |
+| Grafana dashboard | [Open payment dashboard](http://localhost:15300/d/payment-gateway/payment-gateway) |
+| Prometheus query UI | [Open Prometheus](http://localhost:9090) |
+| Liveness | [Check liveness](http://localhost:5000/health/live) |
+| Readiness | [Check readiness](http://localhost:5000/health/ready) |
+| Raw metrics | [View metrics](http://localhost:9464/metrics) |
+| Simulator administration | [Open simulator administration](http://localhost:2525) |
 
 All published ports bind to localhost. Set `API_PORT`, `BANK_PORT`,
 `BANK_ADMIN_PORT`, `METRICS_PORT`, or `OTLP_PORT` before starting Compose if a port is occupied.
@@ -117,14 +118,14 @@ retry a payment.
 
 | Setting | Default / purpose |
 | --- | --- |
-| `Bank__BaseUrl` | `http://localhost:8080/`; Compose uses its bank service hostname |
+| `Bank__BaseUrl` | Bank connection setting; configured automatically by Compose |
 | Bank timeout | 10 seconds |
 | `RateLimiting__Payments__SubmissionPermitLimit` | 10 POST requests per client IP per window |
 | `RateLimiting__Payments__LookupPermitLimit` | 60 GET requests per client IP per window |
 | `RateLimiting__Payments__WindowSeconds` | 60 seconds |
 | `Hosting__UseHttpsRedirection` | true; false inside the local HTTP container |
 | `Hosting__KnownProxyNetworks__0` | Optional trusted proxy CIDR |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Collector URL: IDE profiles use `http://localhost:4317`, Compose uses `http://otel-collector:4317`; unset disables export |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Telemetry connection setting; configured automatically by Compose; see IMPLEMENTATION.md for IDE setup |
 | `OTEL_METRIC_EXPORT_INTERVAL` | Export interval in milliseconds; Compose uses 5000 |
 
 See [IMPLEMENTATION.md](IMPLEMENTATION.md) for telemetry names, tradeoffs,
