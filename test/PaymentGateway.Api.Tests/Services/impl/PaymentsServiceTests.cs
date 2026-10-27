@@ -63,7 +63,7 @@ public class PaymentsServiceTests
     public async Task InvalidRequestNeverCallsBank()
     {
         var bank = new FakeBank(true);
-        var service = new PaymentsService(new(), new PaymentValidationService(new FixedTimeProvider()), bank,
+        var service = new PaymentsService(new PaymentsRepository(), new PaymentValidationService(new FixedTimeProvider()), bank,
             NullLogger<PaymentsService>.Instance);
         var exception = await Assert.ThrowsAsync<PaymentValidationException>(() => service.ProcessPayment(new()));
         Assert.Equal(6, exception.Errors.Count);
@@ -88,7 +88,7 @@ public class PaymentsServiceTests
             default: throw new ArgumentOutOfRangeException(nameof(field));
         }
         var bank = new FakeBank(true);
-        var service = new PaymentsService(new(), new PaymentValidationService(new FixedTimeProvider()), bank,
+        var service = new PaymentsService(new PaymentsRepository(), new PaymentValidationService(new FixedTimeProvider()), bank,
             NullLogger<PaymentsService>.Instance);
 
         var exception = await Assert.ThrowsAsync<PaymentValidationException>(() => service.ProcessPayment(request));

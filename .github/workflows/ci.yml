@@ -23,6 +23,7 @@ jobs:
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_NOLOGO: 'true'
+      MINIMUM_LINE_COVERAGE: '80'
 
     steps:
       - name: Check out repository
@@ -62,6 +63,33 @@ jobs:
           --logger "trx;LogFileName=test-results.trx"
           --collect "XPlat Code Coverage"
           --results-directory TestResults
+
+      - name: Enforce minimum line coverage
+        shell: pwsh
+        run: |
+          $reports = Get-ChildItem TestResults -Recurse -Filter coverage.cobertura.xml
+          if (-not $reports) {
+            throw 'No Cobertura coverage reports were produced.'
+          }
+
+          $linesCovered = 0
+          $linesValid = 0
+          foreach ($report in $reports) {
+            [xml]$coverage = Get-Content $report.FullName
+            $linesCovered += [int]$coverage.coverage.'lines-covered'
+            $linesValid += [int]$coverage.coverage.'lines-valid'
+          }
+
+          if ($linesValid -eq 0) {
+            throw 'Coverage reports do not contain any valid lines.'
+          }
+
+          $percentage = 100 * $linesCovered / $linesValid
+          Write-Host ('Line coverage: {0:N2}% ({1}/{2})' -f $percentage, $linesCovered, $linesValid)
+
+          if ($percentage -lt [double]$env:MINIMUM_LINE_COVERAGE) {
+            throw ('Line coverage {0:N2}% is below the required {1}.' -f $percentage, $env:MINIMUM_LINE_COVERAGE)
+          }
 
       - name: Upload test results and coverage
         if: ${{ always() }}

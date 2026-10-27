@@ -37,7 +37,7 @@ public class PaymentsControllerTests
     [InlineData(false, "Declined")]
     public async Task ApiProcessesAndRetrievesPayment(bool authorized, string status)
     {
-        using var factory = Factory(authorized: authorized);
+        await using var factory = Factory(authorized: authorized);
         using var client = factory.CreateClient();
         var response = await client.PostAsJsonAsync("/api/payments", ValidRequest());
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -70,7 +70,7 @@ public class PaymentsControllerTests
     [InlineData("{\"cardNumber\":2222405343240001}")]
     public async Task ApiRejectsInvalidJsonOrFields(string json)
     {
-        using var factory = Factory();
+        await using var factory = Factory();
         using var client = factory.CreateClient();
         var response = await client.PostAsync("/api/payments", new StringContent(json, Encoding.UTF8, "application/json"));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -80,7 +80,7 @@ public class PaymentsControllerTests
     [Fact]
     public async Task ApiBankUnavailableReturns503()
     {
-        using var factory = Factory(HttpStatusCode.ServiceUnavailable);
+        await using var factory = Factory(HttpStatusCode.ServiceUnavailable);
         using var client = factory.CreateClient();
         var response = await client.PostAsJsonAsync("/api/payments", ValidRequest());
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
@@ -96,7 +96,7 @@ public class PaymentsControllerTests
     public async Task ApiRejectsEachMissingOrNullFieldWithoutCallingBank(string field)
     {
         var bankCalls = 0;
-        using var factory = Factory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        await using var factory = Factory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.AddHttpClient<IBankClient, BankClientService>()
                 .ConfigurePrimaryHttpMessageHandler(() => new StubHttpMessageHandler((_, _) =>
                 {

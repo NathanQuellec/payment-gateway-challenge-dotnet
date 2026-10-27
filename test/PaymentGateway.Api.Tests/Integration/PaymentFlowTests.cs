@@ -45,7 +45,7 @@ public class PaymentFlowTests
             authorization_code = authorized ? "bank-approval" : ""
         }));
         await using var factory = Factory(bank);
-        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         var request = ValidRequest();
         request.Currency = currency;
         request.Amount = amount;
@@ -98,7 +98,7 @@ public class PaymentFlowTests
             authorization_code = "bank-approval"
         }));
         await using var factory = Factory(bank);
-        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
 
         using var response = await client.PostAsync("/api/payments", new StringContent(json, Encoding.UTF8, "application/json"));
 
@@ -125,7 +125,7 @@ public class PaymentFlowTests
             await context.Response.WriteAsync(bankBody);
         });
         await using var factory = Factory(bank);
-        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
 
         using var response = await client.PostAsJsonAsync("/api/payments", ValidRequest());
 
@@ -147,7 +147,7 @@ public class PaymentFlowTests
             authorization_code = "bank-approval"
         }));
         await using var factory = Factory(bank);
-        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         var locations = new List<Uri>();
         var bodies = new List<string>();
         foreach (var amount in new[] { 100, 2500 })
@@ -177,7 +177,7 @@ public class PaymentFlowTests
         await using var bank = await BankStubServer.StartAsync(context =>
             Task.Delay(Timeout.InfiniteTimeSpan, context.RequestAborted));
         await using var factory = Factory(bank, TimeSpan.FromSeconds(1));
-        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
 
         using var response = await client.PostAsJsonAsync("/api/payments", ValidRequest());
 

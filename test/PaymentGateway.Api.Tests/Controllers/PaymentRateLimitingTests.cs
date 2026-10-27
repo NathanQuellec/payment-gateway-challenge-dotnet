@@ -123,7 +123,7 @@ public class PaymentRateLimitingTests
     [Fact]
     public async Task SubmissionAndLookupHaveIndependentLimits()
     {
-        using var factory = Factory();
+        await using var factory = Factory();
         using var client = factory.CreateClient();
         using var first = await SendAsync(factory, "POST");
         using var second = await SendAsync(factory, "POST");
