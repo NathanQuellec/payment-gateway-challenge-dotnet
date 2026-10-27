@@ -1,15 +1,92 @@
-version: "3.8"
-
 services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:${API_PORT:-15000}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Bank__BaseUrl: http://bank_simulator:8080/
+      Hosting__UseHttpsRedirection: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "5000"
+    depends_on:
+      bank_simulator:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.128.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:${METRICS_PORT:-9464}:9464"
+      - "127.0.0.1:${OTLP_PORT:-4317}:4317"
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=24h
+      - --storage.tsdb.retention.size=256MB
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-local-demo-change-me}
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/payment-gateway.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-15300}:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   bank_simulator:
-    container_name: bank_simulator
     image: bbyars/mountebank:2.8.1
     ports:
-      - "2525:2525"
-      - "8080:8080"
+      - "127.0.0.1:${BANK_ADMIN_PORT:-2525}:2525"
+      - "127.0.0.1:${BANK_PORT:-8080}:8080"
     command: --configfile /imposters/bank_simulator.ejs --allowInjection
     volumes:
       - type: bind
         source: ./imposters
         target: /imposters
-      
+        read_only: true
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:2525/imposters', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  prometheus-data:
+  grafana-data:
