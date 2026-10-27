@@ -138,7 +138,18 @@ limitations and future improvements.
 dotnet test PaymentGateway.sln --configuration Release
 ```
 
-The .NET tests use controlled HTTP handlers and need no Docker or running API.
+The .NET suite includes unit tests, API tests with controlled HTTP handlers, and
+C# integration tests using a local Kestrel bank stub on an automatically assigned
+loopback port. Integration tests exercise the real bank HTTP client, request
+mapping, payment creation/retrieval, masking, validation and bank error/timeout
+responses. No Docker or separately running API is needed. Run this group alone:
+
+```sh
+dotnet test PaymentGateway.sln --configuration Release --filter Category=Integration
+```
+
+The HTTP stub provides controlled bank responses; these tests do not start or
+verify the supplied Mountebank simulator or the Docker stack.
 
 GitHub Actions builds and analyzes the solution, runs tests with coverage,
 security-audits dependencies and scans C# with CodeQL. Test reports are retained

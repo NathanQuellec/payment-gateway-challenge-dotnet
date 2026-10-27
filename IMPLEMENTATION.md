@@ -24,6 +24,20 @@
 - Non-root Docker packaging, local Compose stack, health checks and a Grafana metrics dashboard.
 - Unit and API integration tests with controlled bank responses; CI builds, tests, audits dependencies and runs CodeQL.
 
+## C# integration tests
+
+`Integration/PaymentFlowTests.cs` runs the real bank HTTP client against a local
+Kestrel stub on an automatically assigned loopback port. The API uses its real
+controller, validator, payment service, error handler and in-memory repository.
+Tests verify the bank request contract, every public payment field, all three
+currencies, independent retrieval of multiple payments, validation before bank
+calls, bank failures and an actual HTTP timeout. Each test disposes its API host
+and bank stub. No packages or Docker services are required beyond the existing
+test dependencies. The API is hosted in-process; the bank connection uses real
+HTTP. This does not verify the supplied bank simulator or Docker packaging.
+
+Run only this group with `dotnet test PaymentGateway.sln --filter Category=Integration`.
+
 ## Next improvements
 
 - Durable storage and reconciliation for pending or unknown bank outcomes.
