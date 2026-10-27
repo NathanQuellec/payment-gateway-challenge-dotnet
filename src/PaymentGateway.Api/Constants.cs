@@ -23,7 +23,6 @@ internal static class Constants
 
     internal static class Hosting
     {
-        public const string KnownProxyNetworksConfigurationKey = "Hosting:KnownProxyNetworks";
         public const string UseHttpsRedirectionConfigurationKey = "Hosting:UseHttpsRedirection";
         public const string HealthPathPrefix = "/health";
         public const string LivenessPath = HealthPathPrefix + "/live";

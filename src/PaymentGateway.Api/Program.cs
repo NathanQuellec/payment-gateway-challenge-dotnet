@@ -21,7 +21,6 @@ builder.Logging.AddFilter(Constants.Telemetry.ExceptionMiddlewareLogCategory, Lo
 builder.Services.AddGatewayObservability(builder.Configuration);
 
 // Hosting and error responses.
-builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddHealthChecks();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
@@ -61,8 +60,7 @@ builder.Services.AddHttpClient<IBankClient, BankClientService>(client =>
 
 var app = builder.Build();
 
-// Proxy headers and error handling precede request processing.
-app.UseForwardedHeaders();
+// Error handling precedes request processing.
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
