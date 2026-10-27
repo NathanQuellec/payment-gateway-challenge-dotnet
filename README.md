@@ -16,6 +16,7 @@ docker compose up --build -d --wait
 - [Swagger / try the API](http://localhost:15000/swagger/index.html)
 - [Grafana dashboard](http://localhost:15300/d/payment-gateway/payment-gateway) — no login required; send payments and allow 10–15 seconds for charts.
 - [Health check](http://localhost:15000/health/ready)
+- [OpenTelemetry metrics](http://localhost:9464/metrics)
 
 
 Ports bind to localhost. If port 15000 is occupied, set `API_PORT` before startup
