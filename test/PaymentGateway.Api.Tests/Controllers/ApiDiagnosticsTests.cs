@@ -76,15 +76,13 @@ public class ApiDiagnosticsTests
         Assert.DoesNotContain(logs.Messages, message => message.Contains("2222405343240001"));
     }
 
-    [Theory]
-    [InlineData("/health/live")]
-    [InlineData("/health/ready")]
-    public async Task HealthProbesDoNotSubmitPayments(string path)
+    [Fact]
+    public async Task HealthCheckDoesNotSubmitPayments()
     {
         await using var factory = PaymentsControllerTests.Factory().WithWebHostBuilder(builder =>
             builder.ConfigureServices(services => services.AddScoped<IPaymentsService, FailingPaymentsService>()));
         using var client = factory.CreateClient();
-        using var response = await client.GetAsync(path);
+        using var response = await client.GetAsync("/health");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 

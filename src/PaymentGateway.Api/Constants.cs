@@ -24,9 +24,7 @@ internal static class Constants
     internal static class Hosting
     {
         public const string UseHttpsRedirectionConfigurationKey = "Hosting:UseHttpsRedirection";
-        public const string HealthPathPrefix = "/health";
-        public const string LivenessPath = HealthPathPrefix + "/live";
-        public const string ReadinessPath = HealthPathPrefix + "/ready";
+        public const string HealthPath = "/health";
     }
 
     internal static class Errors

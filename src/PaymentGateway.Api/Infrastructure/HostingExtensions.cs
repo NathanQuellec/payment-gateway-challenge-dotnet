@@ -14,7 +14,7 @@ internal static class HostingExtensions
             {
                 tracing.AddSource(Constants.Telemetry.ServiceName)
                     .AddAspNetCoreInstrumentation(options => options.Filter = context =>
-                        !context.Request.Path.StartsWithSegments(Constants.Hosting.HealthPathPrefix))
+                        !context.Request.Path.StartsWithSegments(Constants.Hosting.HealthPath))
                     .AddHttpClientInstrumentation();
                 if (!string.IsNullOrWhiteSpace(configuration[Constants.Telemetry.OtlpEndpointConfigurationKey]))
                     tracing.AddOtlpExporter();

@@ -90,10 +90,9 @@ if (builder.Configuration.GetValue(Constants.Hosting.UseHttpsRedirectionConfigur
 app.UseRouting();
 app.UseRateLimiter();
 
-// Payment endpoints and health probes.
+// Payment endpoints and health check.
 app.MapControllers();
-app.MapHealthChecks(Constants.Hosting.LivenessPath).DisableRateLimiting();
-app.MapHealthChecks(Constants.Hosting.ReadinessPath).DisableRateLimiting();
+app.MapHealthChecks(Constants.Hosting.HealthPath).DisableRateLimiting();
 
 app.Run();
 
