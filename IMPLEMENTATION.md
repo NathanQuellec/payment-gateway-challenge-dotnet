@@ -51,7 +51,5 @@ Run only this group with `dotnet test PaymentGateway.sln --filter Category=Integ
 - AWS deployment through Terraform and GitHub Actions.
 - Retained traces, alerts and service-level objectives.
 - Shared rate limits and realistic load testing across API instances.
-- Trusted forwarded-header configuration if deployed behind a reverse proxy.
-- Image scanning, SBOMs, pinned image/action digests and deployment hardening.
 
 See [README.md](README.md) for setup, commands and API examples.
