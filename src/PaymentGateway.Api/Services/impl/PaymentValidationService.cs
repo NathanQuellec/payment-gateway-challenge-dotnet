@@ -39,7 +39,7 @@ public class PaymentValidationService(TimeProvider timeProvider) : IPaymentValid
     private void ValidateExpiryYear(PaymentRequest request, Dictionary<string, string[]> errors)
     {
         var now = timeProvider.GetUtcNow();
-        if (request.ExpiryYear is not (>= 1 and <= 9999) || request.ExpiryYear < now.Year ||
+        if (request.ExpiryYear is not (>= 1970 and <= 9999) || request.ExpiryYear < now.Year ||
             (request.ExpiryYear == now.Year && request.ExpiryMonth < now.Month))
             errors[nameof(request.ExpiryYear)] = ["Card must not be expired."];
     }
