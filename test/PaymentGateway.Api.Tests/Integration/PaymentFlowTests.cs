@@ -94,7 +94,8 @@ public class PaymentFlowTests
     {
         await using var bank = await BankStubServer.StartAsync(context => context.Response.WriteAsJsonAsync(new
         {
-            authorized = true, authorization_code = "bank-approval"
+            authorized = true,
+            authorization_code = "bank-approval"
         }));
         await using var factory = Factory(bank);
         using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
@@ -142,7 +143,8 @@ public class PaymentFlowTests
     {
         await using var bank = await BankStubServer.StartAsync(context => context.Response.WriteAsJsonAsync(new
         {
-            authorized = true, authorization_code = "bank-approval"
+            authorized = true,
+            authorization_code = "bank-approval"
         }));
         await using var factory = Factory(bank);
         using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
